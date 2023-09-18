@@ -1,0 +1,13 @@
+# Configurações de conexão com o banco de dados PostgreSQL
+db:
+  host: 127.0.0.1
+  port: 5432
+  database: projeto
+  user: postgres
+  password: example
+
+token:
+  host: http://localhost
+  port: 8000
+  user: raphael
+  pass: teste
