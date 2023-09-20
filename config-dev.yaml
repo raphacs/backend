@@ -10,4 +10,6 @@ token:
   host: http://localhost
   port: 8000
   user: raphael
-  pass: teste
+  password: teste
+  
+chaves: BilinuX01
