@@ -2,6 +2,7 @@ import os
 import jwt
 from datetime import datetime, timedelta
 from properties import Properties
+from fastapi import  HTTPException
 
 class JWTUtils:
     def __init__(self, environment="dev"):
