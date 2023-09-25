@@ -16,87 +16,34 @@ from relatorios.relatorios import Relatorios
 from planos.planos import Planos
 from clientes.clientes import Clientes
 from properties import Properties
+from utils import  atualizacao_dados_genericos, insercao_dados_genericos, verifica_banco_para_busca, verify_credentials
 
 app = FastAPI()
 
 environment = os.getenv("ENVIRONMENT", "dev") 
 
+
+
+### instanciando classes ######
 db_connector = DatabaseConnector(environment=environment)
 modulos = Modulos(environment=environment)
 arquivos = Arquivos(environment=environment)
 usuarios = Usuarios(environment=environment)
-relatorio = Relatorios(environment=environment)
+relatorios = Relatorios(environment=environment)
 properties = Properties(environment=environment)
 planos = Planos(environment=environment)
 cliente = Clientes(environment=environment)
 jwt_utils = JWTUtils(environment=environment)
 
+
+
 # Configuração da autenticação usando o OAuth2PasswordBearer
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
 security = HTTPBasic()
 
-def verify_credentials(username: str, password: str):
-    expected_username = properties.get("token")["user"]
-    expected_password = properties.get("token")["password"]
-    return username == expected_username and password == expected_password
-
-def inserir_dados_genericos(current_user,data,inserir_dados_func):
-    if not jwt_utils.verify_token(current_user):
-            raise HTTPException(status_code=401, detail="Token inválido")
-
-    engine = db_connector.get_engine()
-
-    if not engine:
-        raise HTTPException(status_code=500, detail="Erro ao conectar ao banco de dados.")
-
-    # Realize a ingestão do módulo
-    result = inserir_dados_func(data)
-
-    return result
 
 
-def buscar_dados_genericos(current_user,busca_todos):
-    try:
-        if not jwt_utils.verify_token(current_user):
-            raise HTTPException(status_code=401, detail="Token inválido")
-   
-        engine = db_connector.get_engine()
-
-        if not engine:
-            raise HTTPException(status_code=500, detail="Erro ao conectar ao banco de dados.")
-   
-        result = busca_todos()
-
-        return result
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao buscar dados: {str(e)}")
-
-
-def busca_parametrizada(current_user, busca_func, aSerBuscado):
-    
-        # Verifique o token JWT recebido
-        if not jwt_utils.verify_token(current_user):
-            raise HTTPException(status_code=401, detail="Token inválido")
-
-        # Verifique a conexão com o banco de dados
-        engine = db_connector.get_engine()
-
-        if not engine:
-            raise HTTPException(status_code=500, detail="Erro ao conectar ao banco de dados.")
-
-        # Realize a busca usando a função de busca fornecida
-        result = busca_func(aSerBuscado)
-        
-        print("Resultado da busca:", result)  # Adicione esta linha para depuração
-
-        return result
-
-    
-
-
-
+##### buscando token e conexaoes com o banco
 @app.post("/token")
 async def get_token(credentials: HTTPBasicCredentials = Depends(security)):
     username = credentials.username
@@ -115,14 +62,11 @@ async def get_token(credentials: HTTPBasicCredentials = Depends(security)):
 @app.get("/conexao", response_model=dict)
 async def verificar_conexao(current_user: dict = Depends(oauth2_scheme)):
     try:
-        # Verifique o token JWT recebido
         if not jwt_utils.verify_token(current_user):
             raise HTTPException(status_code=401, detail="Token inválido")
 
-        # Tente obter uma engine de conexão com o banco de dados
         engine = db_connector.get_engine()
 
-        # Se a engine foi obtida com sucesso, a conexão está funcionando
         if engine:
             return {"message": "Conexão com o banco de dados está funcionando."}
         else:
@@ -140,7 +84,7 @@ async def inserir_modulo(
     current_user: dict = Depends(oauth2_scheme)
 ):
     try:
-        return inserir_dados_genericos(current_user,data,modulos.inserir_dados)
+        return insercao_dados_genericos(current_user, data, modulos.inserir_dados)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao ingerir o módulo: {str(e)}")
@@ -154,11 +98,30 @@ async def inserir_arquivo(
     current_user: dict = Depends(oauth2_scheme)
 ):
     try:
-       return inserir_dados_genericos(current_user,data,arquivos.inserir_dados)
+       return insercao_dados_genericos(current_user,data,arquivos.inserir_dados)
         
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao ingerir o arquivo: {str(e)}")
+    
+    
+@app.get("/buscaItem/{dado}", response_model=dict)
+async def busca_item(
+    dado: str,
+    current_user: dict = Depends(oauth2_scheme)
+):
+
+    return verifica_banco_para_busca(current_user, arquivos.busca_arquivo(dado) )
+    
+@app.get("/buscaItemExiste/{dado}", response_model=dict)
+async def busca_por_id(
+    dado: str,
+    current_user: dict = Depends(oauth2_scheme)
+):
+
+    return verifica_banco_para_busca(current_user, arquivos.busca_arquivo_existe(dado) )
+    
+
 
 #### USUARIO ######
 
@@ -168,34 +131,45 @@ async def inserir_usuario(
     current_user: dict = Depends(oauth2_scheme)
 ):
     try:
-        return inserir_dados_genericos(current_user,data,usuarios.inserir_dados)
+        return insercao_dados_genericos(current_user,data,usuarios.inserir_dados)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao inserir o usuario: {str(e)}")
     
 @app.get("/buscarTodosUsuarios", response_model=list)
 async def buscar_usuarios(current_user: dict = Depends(oauth2_scheme)):
-    return buscar_dados_genericos(current_user, usuarios.busca_todos)
+    
+    return verifica_banco_para_busca(current_user, usuarios.busca_todos())
+
+
     
     
-@app.get("/buscaPorUsuario/{usuario}", response_model=dict)
-async def busca_por_usuario(
+@app.get("/buscaUsuario/{dado}", response_model=dict)
+async def busca_usuario(
+    dado: str,
+    current_user: dict = Depends(oauth2_scheme)
+):
+
+    return verifica_banco_para_busca(current_user, usuarios.busca_usuario(dado) )
+    
+@app.get("/buscaUsuarioExiste/{usuario}", response_model=dict)
+async def busca_por_id(
     usuario: str,
     current_user: dict = Depends(oauth2_scheme)
 ):
-    # Realize a busca parametrizada
-    result = busca_parametrizada(current_user, usuarios.busca_usuario, usuario)
-    response_data = {
-        "id": result["id"],
-        "usuario": result["usuario"],
-        "admin": result["admin"]
-        
-    }
 
-    return response_data
+    return verifica_banco_para_busca(current_user, usuarios.busca_usuario_existe(usuario) )
     
+@app.put("/atualizarUsuario/{usuario}", response_model=dict)
+async def atualizar_usuario(
+    usuario: str,
+    data: dict,  
+    current_user: dict = Depends(oauth2_scheme),  
+):
+    
+    return atualizacao_dados_genericos(current_user,data,usuarios.atualizar_dados, usuario)
 
-
+    
 
 
 #### RELATORIO ######
@@ -204,11 +178,33 @@ async def inserir_relatorio(
     data: dict,
     current_user: dict = Depends(oauth2_scheme)
 ):
-    try:
-        return inserir_dados_genericos(current_user,data,relatorio.inserir_dados)
+    
+    return insercao_dados_genericos(current_user,data,relatorios.inserir_dados)
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao inserir o usuario: {str(e)}")
+    
+@app.get("/buscarTodosRelatorios", response_model=list)
+async def buscar_usuarios(current_user: dict = Depends(oauth2_scheme)):
+    
+    return verifica_banco_para_busca(current_user, relatorios.busca_todos())
+    
+    
+@app.get("/buscaPorRelatorio/{dado}", response_model=dict)
+async def busca_por_usuario(
+    dado: str,
+    current_user: dict = Depends(oauth2_scheme)
+):
+
+    return verifica_banco_para_busca(current_user, relatorios.busca_relatorio(dado) )
+    
+@app.get("/buscaRelatorioExiste/{dado}", response_model=dict)
+async def busca_por_id(
+    dado: str,
+    current_user: dict = Depends(oauth2_scheme)
+):
+
+    return verifica_banco_para_busca(current_user, relatorios.busca_relatorio_existe(dado) )
+    
+    
    
 #### PLANO ###### 
 @app.post("/inserirPlano", response_model=dict)
@@ -216,22 +212,50 @@ async def inserir_plano(
     data: dict,
     current_user: dict = Depends(oauth2_scheme)
 ):
-    try:
-        return inserir_dados_genericos(current_user,data,planos.inserir_dados)
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao inserir o plano: {str(e)}")
+    
+    return insercao_dados_genericos(current_user,data,planos.inserir_dados)
+    
 
 @app.post("/inserirPlanoItem", response_model=dict)
 async def inserir_plano_item(
     data: dict,
     current_user: dict = Depends(oauth2_scheme)
 ):
-    try:
-        return inserir_dados_genericos(current_user,data,planos.inserir_dados_itens)
+    
+    return insercao_dados_genericos(current_user,data,planos.inserir_dados_itens)
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao inserir o item do plano: {str(e)}")
+ 
+@app.get("/buscarTodosPlanos", response_model=list)
+async def buscar_planos(current_user: dict = Depends(oauth2_scheme)):
+    
+    return verifica_banco_para_busca(current_user, planos.busca_todos())
+    
+    
+@app.get("/buscaPlano/{dado}", response_model=dict)
+async def busca_plano(
+    dado: str,
+    current_user: dict = Depends(oauth2_scheme)
+):
+
+    return verifica_banco_para_busca(current_user, planos.busca_plano(dado) )
+
+@app.get("/buscaPlanoItem/{dado}", response_model=dict)
+async def busca_plano(
+    dado: str,
+    current_user: dict = Depends(oauth2_scheme)
+):
+
+    return verifica_banco_para_busca(current_user, planos.busca_plano_item(dado) )
+
+    
+@app.get("/buscaPlanoExiste/{dado}", response_model=dict)
+async def busca_plano_existe(
+    dado: str,
+    current_user: dict = Depends(oauth2_scheme)
+):
+
+    return verifica_banco_para_busca(current_user, planos.busca_plano_existe(dado) )
+    
    
 #### CLIENTE ######
     
@@ -240,13 +264,34 @@ async def inserir_cliente(
     data: dict,
     current_user: dict = Depends(oauth2_scheme)
 ):
-    try:
-        return inserir_dados_genericos(current_user,data,cliente.inserir_dados)
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao inserir o cliente: {str(e)}")
+    
+    return insercao_dados_genericos(current_user,data,cliente.inserir_dados)
 
 
+@app.get("/buscarTodosClientes", response_model=list)
+async def buscar_clientes(current_user: dict = Depends(oauth2_scheme)):
+    
+    return verifica_banco_para_busca(current_user, cliente.busca_todos())
+    
+    
+@app.get("/buscaCliente/{dado}", response_model=dict)
+async def busca_cliente(
+    dado: str,
+    current_user: dict = Depends(oauth2_scheme)
+):
+
+    return verifica_banco_para_busca(current_user, cliente.busca_cliente(dado) )
+    
+    
+@app.get("/buscaClienteExiste/{dado}", response_model=dict)
+async def busca_cliente_existe(
+    dado: str,
+    current_user: dict = Depends(oauth2_scheme)
+):
+
+    return verifica_banco_para_busca(current_user, cliente.busca_cliente_existe(dado) )
+    
+    
 
 
 #### MAIN ######

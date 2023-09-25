@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from banco.conexao_banco import DatabaseConnector
 from sqlalchemy import create_engine, text
 
@@ -12,10 +13,10 @@ class Modulos:
             try:
                 query = """
                 INSERT INTO modulo (descricao, ordem, status, id_arquivo)
-                VALUES (%(descricao)s, %(ordem)s, %(status)s, %(id_arquivo)s)
+                VALUES (:descricao, :ordem, :status, :id_arquivo)
                 """
                 connection.execute(
-                    query,
+                    text(query),
                     {
                         "descricao": module_data["descricao"],
                         "ordem": module_data["ordem"],
@@ -26,7 +27,7 @@ class Modulos:
                 transaction.commit()
             except Exception as e:
                 transaction.rollback()
-                raise e
+                raise HTTPException(status_code=500, detail=f"Erro ao inserir o relatório: {str(e)}")
 
         return {"message": "Módulo ingerido com sucesso."}
     

@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from banco.conexao_banco import DatabaseConnector
 from sqlalchemy import create_engine, text
 
@@ -10,10 +11,10 @@ class Relatorios:
         with self.engine.connect() as connection:
             transaction = connection.begin()
             try:
-                query = """
-                INSERT INTO relatorio (descricao, ordem, status, id_report,id_workspace, id_dataset, role, id_arquivo, id_modulo)
-                VALUES (%(descricao)s, %(ordem)s, %(status)s, %(id_report)s, %(id_workspace)s, %(id_dataset)s, %(role)s, %(id_arquivo)s, %(id_modulo)s)
-                """
+                query = text("""
+                INSERT INTO relatorio (descricao, ordem, status, id_report, id_workspace, id_dataset, role, id_arquivo, id_modulo)
+                VALUES (:descricao, :ordem, :status, :id_report, :id_workspace, :id_dataset, :role, :id_arquivo, :id_modulo)
+                """)
                 connection.execute(
                     query,
                     {
@@ -31,26 +32,41 @@ class Relatorios:
                 transaction.commit()
             except Exception as e:
                 transaction.rollback()
-                raise e
+                raise HTTPException(status_code=500, detail=f"Erro ao inserir o relatório: {str(e)}")
 
-        return {"message": "Relatorio ingerido com sucesso."}
+        return {"message": "Relatório ingerido com sucesso."}
+
     
     def busca_todos(self):
         with self.engine.connect() as connection:
-            query = "SELECT * FROM relatorio"  
+            query = text("SELECT id, descricao, ordem , status, id_report, id_workspace, id_dataset, role, id_arquivo, id_modulo FROM relatorio")
             result = connection.execute(query)
-            results = [dict(row) for row in result]
-            return results
+            relatorios = [{"id": row[0], "descricao": row[1], "ordem": row[2], "status": row[3], "id_report": row[4], "id_workspace": row[5], "id_dataset": row[6], "role": row[7], "id_arquivo": row[8], "id_modulo": row[9]} for row in result.fetchall()]
+            if relatorios:
+                return relatorios
+            else:
+                raise HTTPException(status_code=500, detail=f"relatorios nao encontrados")
+            
             
     def busca_relatorio(self, id):
         with self.engine.connect() as connection:
-            query = text("SELECT * FROM relatorio WHERE id = :id")
-            result = connection.execute(query, id=id)
-            results = result.fetchone()  
-            return dict(results) if results else None
+            query = text("SELECT id, descricao, ordem , status, id_report, id_workspace, id_dataset, role, id_arquivo, id_modulo FROM relatorio WHERE id = :id")
+            result = connection.execute(query, {"id": id})
+            row = result.fetchone()
+            
+            if row:
+                return {"id": row[0], "descricao": row[1], "ordem": row[2], "status": row[3], "id_report": row[4], "id_workspace": row[5], "id_dataset": row[6], "role": row[7], "id_arquivo": row[8], "id_modulo": row[9]}
+            else:
+                raise HTTPException(status_code=500, detail=f"relatorio nao encontrado")
+        
         
     def busca_relatorio_existe(self, id):
         with self.engine.connect() as connection:
             query = text("SELECT 1 FROM relatorio WHERE id = :id")
-            result = connection.execute(query, id=id)
-            return result.fetchone() is not None
+            result = connection.execute(query, {"id": id})
+            relatorio = result.fetchone()
+            
+            if relatorio:
+                return {"existe": True}
+            else:
+                return {"existe": False}
