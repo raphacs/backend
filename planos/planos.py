@@ -52,7 +52,7 @@ class Planos:
 
         return {"message": "Item do plano ingerido com sucesso."}
     
-    def busca_todos(self):
+    def buscar_todos(self):
         with self.engine.connect() as connection:
             query = text("SELECT id, nome FROM plano")
             result = connection.execute(query)
@@ -63,7 +63,7 @@ class Planos:
                 raise HTTPException(status_code=500, detail=f"planos nao encontrados")
             
             
-    def busca_plano(self, id):
+    def buscar_plano(self, id):
         with self.engine.connect() as connection:
             query = text("SELECT id, nome FROM plano WHERE id = :id")
             result = connection.execute(query, {"id": id})
@@ -74,7 +74,7 @@ class Planos:
             else:
                 raise HTTPException(status_code=500, detail=f"plano nao encontrado")
             
-    def busca_plano_item(self, id):
+    def buscar_plano_item(self, id):
         with self.engine.connect() as connection:
             query = text("SELECT id, id_relatorio, id_plano FROM plano_item WHERE id = :id")
             result = connection.execute(query, {"id": id})
@@ -87,7 +87,7 @@ class Planos:
         
         
         
-    def busca_plano_existe(self, id):
+    def buscar_plano_existe(self, id):
         with self.engine.connect() as connection:
             query = text("SELECT 1 FROM plano WHERE id = :id")
             result = connection.execute(query, {"id": id})

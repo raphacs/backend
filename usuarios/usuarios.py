@@ -32,7 +32,7 @@ class Usuarios:
 
         return {"message": "Usuário inserido com sucesso."}
     
-    def busca_todos(self):
+    def buscar_todos(self):
         with self.engine.connect() as connection:
             query = text("SELECT id, usuario, admin FROM usuario")
             result = connection.execute(query)
@@ -45,7 +45,7 @@ class Usuarios:
 
 
             
-    def busca_usuario(self, nome_usuario):
+    def buscar_usuario(self, nome_usuario):
         with self.engine.connect() as connection:
             query = text("SELECT id, usuario, admin FROM usuario WHERE usuario = :nome_usuario")
             result = connection.execute(query, {"nome_usuario": nome_usuario})
@@ -59,7 +59,7 @@ class Usuarios:
 
 
         
-    def busca_usuario_existe(self, nome_usuario):
+    def buscar_usuario_existe(self, nome_usuario):
         with self.engine.connect() as connection:
             query = text("SELECT 1 FROM usuario WHERE usuario = :nome_usuario")
             result = connection.execute(query, {"nome_usuario": nome_usuario})
@@ -74,14 +74,13 @@ class Usuarios:
     def atualizar_dados(self, data, usuario):
         with self.engine.connect() as connection:
             transaction = connection.begin()
-            existe = self.busca_usuario_existe(usuario)
-            print(existe.get("existe"))
+            existe = self.buscar_usuario_existe(usuario)
             if existe.get("existe"):
                 try:
                     query = """
                     UPDATE usuario
                     SET senha_hash = :senha_hash, admin = :admin, id_cliente = :id_cliente, usuario = :usuario
-                    WHERE usuario = :usuarioBusca
+                    WHERE usuario = :usuariobuscar
                     """
                     connection.execute(
                         text(query),
@@ -90,7 +89,7 @@ class Usuarios:
                             "admin": data["admin"],
                             "id_cliente": data["id_cliente"],
                             "usuario": data["usuario"],
-                            "usuarioBusca": usuario
+                            "usuariobuscar": usuario
                         },
                     )
                     transaction.commit()
@@ -102,3 +101,17 @@ class Usuarios:
                 
             else:
                 raise HTTPException(status_code=500, detail=f"Usuario não existe")
+
+
+
+    def deletar_usuario(self, nome_usuario):
+            with self.engine.connect() as connection:
+                
+                usuario_existente = self.buscar_usuario_existe(nome_usuario)
+                
+                if usuario_existente.get('existe'):
+                    query = text("DELETE FROM usuario WHERE usuario = :nome_usuario")
+                    connection.execute(query, {"nome_usuario": nome_usuario})
+                    return {"message": "Usuário deletado com sucesso."}
+                else:
+                    raise HTTPException(status_code=404, detail="Usuário não encontrado, não é possível excluir.")

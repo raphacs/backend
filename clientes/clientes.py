@@ -30,7 +30,7 @@ class Clientes:
 
         return {"message": "Cliente ingerido com sucesso."}
     
-    def busca_todos(self):
+    def buscar_todos(self):
         with self.engine.connect() as connection:
             query = text("SELECT id, documento , status, id_plano FROM cliente")
             result = connection.execute(query)
@@ -40,7 +40,7 @@ class Clientes:
             else:
                 raise HTTPException(status_code=500, detail=f"clientes nao encontrados")
             
-    def busca_cliente(self, documento):
+    def buscar_cliente(self, documento):
         with self.engine.connect() as connection:
             query = text("SELECT id, documento , status, id_plano  FROM cliente WHERE documento = :documento")
             result = connection.execute(query, {"documento": documento})
@@ -51,7 +51,7 @@ class Clientes:
             else:
                 raise HTTPException(status_code=500, detail=f"cliente nao encontrado")
         
-    def busca_cliente_existe(self, id):
+    def buscar_cliente_existe(self, id):
         with self.engine.connect() as connection:
             query = text("SELECT 1 FROM cliente WHERE id = :id")
             result = connection.execute(query, {"id": id})
@@ -61,3 +61,50 @@ class Clientes:
                 return {"existe": True}
             else:
                 return {"existe": False}
+            
+    def atualizar_dados(self, data, cliente):
+        with self.engine.connect() as connection:
+            transaction = connection.begin()
+            existe = self.buscar_cliente_existe(cliente)
+            if existe.get("existe"):
+                try:
+                    query = """
+                    UPDATE cliente
+                    SET documento = :documento, status = :status, id_plano = :id_plano
+                    WHERE id = :id
+                    """
+                    connection.execute(
+                        text(query),
+                        {
+                            "documento": data["documento"],
+                            "status": data["status"],
+                            "id_plano": data["id_plano"],
+                            "id": cliente
+                        },
+                    )
+                    transaction.commit()
+                    return {"message": "Cliente atualizado com sucesso."}
+                except Exception as e:
+                    transaction.rollback()
+                    raise HTTPException(status_code=500, detail=f"Erro ao atualizar o cliente: {str(e)}")
+
+                
+            else:
+                raise HTTPException(status_code=500, detail=f"Cliente não existe")
+
+
+
+    def deletar_cliente(self, cliente):
+        try:
+            with self.engine.connect() as connection:
+                
+                existe = self.buscar_cliente_existe(cliente)
+                
+                if existe.get('existe'):
+                    query = text("DELETE FROM cliente WHERE id = :id")
+                    connection.execute(query, {"id": cliente})
+                    return {"message": "Cliente deletado com sucesso."}
+                else:
+                    raise HTTPException(status_code=404, detail="Cliente não encontrado, não é possível excluir.")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Erro ao deletar o cliente: {str(e)}")

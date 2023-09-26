@@ -48,7 +48,7 @@ def atualizacao_dados_genericos(current_user,data,dados_func, chave):
     return result
 
 
-def verifica_banco_para_busca(current_user,busca_todos):
+def verifica_banco(current_user,buscar_todos):
     
     if not jwt_utils.verify_token(current_user):
         raise HTTPException(status_code=401, detail="Token inválido")
@@ -58,7 +58,7 @@ def verifica_banco_para_busca(current_user,busca_todos):
     if not engine:
         raise HTTPException(status_code=500, detail="Erro ao conectar ao banco de dados.")
     
-    result = busca_todos
+    result = buscar_todos
 
     return result
 
