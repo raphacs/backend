@@ -1,6 +1,7 @@
 from fastapi import HTTPException
 from banco.conexao_banco import DatabaseConnector
 from sqlalchemy import create_engine, text
+from utils import criar_salt, criar_hash_senha
 
 class Usuarios:
     def __init__(self, environment):
@@ -10,6 +11,9 @@ class Usuarios:
     def inserir_dados(self, data):
         with self.engine.connect() as connection:
             transaction = connection.begin()
+            
+            salt = criar_salt()
+            
             try:
                 query = """
                 INSERT INTO usuario (senha_hash, salt, usuario, admin, id_cliente)
@@ -18,9 +22,9 @@ class Usuarios:
                 connection.execute(
                     text(query),
                     {
-                        "senha_hash": data["senha_hash"],
-                        "salt": data["salt"],
-                        "usuario": data["usuario"],
+                        "senha_hash": (criar_hash_senha(data["senha_hash"],salt).decode('utf-8')),
+                        "salt": salt.decode('utf-8'),
+                        "usuario": (data["usuario"].upper()),
                         "admin": data["admin"],
                         "id_cliente": data["id_cliente"]
                     },
@@ -42,20 +46,16 @@ class Usuarios:
             else:
                 raise HTTPException(status_code=500, detail=f"usuarios nao encontrados")
 
-
-
             
     def buscar_usuario(self, nome_usuario):
         with self.engine.connect() as connection:
-            query = text("SELECT id, usuario, admin FROM usuario WHERE usuario = :nome_usuario")
+            query = text("SELECT id, usuario, admin, senha_hash, salt, id_cliente FROM usuario WHERE usuario = :nome_usuario")
             result = connection.execute(query, {"nome_usuario": nome_usuario})
             usuario = result.fetchone()
-            
             if usuario:
-                return {"id": usuario[0], "usuario": usuario[1], "admin": usuario[2]}
+                return {"id": usuario[0], "usuario": usuario[1], "admin": usuario[2], "senha_hash": usuario[3], "salt": usuario[4], "id_cliente": usuario[5]}
             else:
                 raise HTTPException(status_code=500, detail=f"usuario nao encontrado")
-
 
 
         

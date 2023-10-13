@@ -4,6 +4,7 @@ from autenticacao.jwt_utils import JWTUtils
 from banco.conexao_banco import DatabaseConnector
 from properties import Properties
 import os
+import bcrypt
 
 
 environment = os.getenv("ENVIRONMENT", "dev") 
@@ -13,6 +14,18 @@ properties = Properties(environment=environment)
 db_connector = DatabaseConnector(environment=environment)
 
 jwt_utils = JWTUtils(environment=environment)
+
+def criar_salt():
+    # Gerar um salt aleatório
+    salt = bcrypt.gensalt()
+    return salt
+
+def criar_hash_senha(senha, salt):
+    
+    # Hash da senha com o salt
+    hash_senha = bcrypt.hashpw(senha.encode('utf-8'), salt)
+    
+    return hash_senha
 
 def verify_credentials(username: str, password: str):
     expected_username = properties.get("token")["user"]

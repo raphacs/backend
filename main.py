@@ -4,7 +4,7 @@ from typing import Optional
 
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm , HTTPBasic, HTTPBasicCredentials
-
+from fastapi.encoders import jsonable_encoder
 
 
 from banco.conexao_banco import DatabaseConnector
@@ -17,8 +17,16 @@ from planos.planos import Planos
 from clientes.clientes import Clientes
 from properties import Properties
 from utils import  atualizacao_dados_genericos, insercao_dados_genericos, verifica_banco, verify_credentials
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Pode ser configurado para a origem específica do seu aplicativo
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 environment = os.getenv("ENVIRONMENT", "dev") 
 
@@ -193,14 +201,14 @@ async def inserir_usuario(
     data: dict,
     current_user: dict = Depends(oauth2_scheme)
 ):
-    try:
-        return insercao_dados_genericos(current_user,data,usuarios.inserir_dados)
+    
+    return insercao_dados_genericos(current_user,data,usuarios.inserir_dados)
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao inserir o usuario: {str(e)}")
+    
     
 @app.get("/buscarTodosUsuarios", response_model=list)
 async def buscar_usuarios(current_user: dict = Depends(oauth2_scheme)):
+    
     
     return verifica_banco(current_user, usuarios.buscar_todos())
 
@@ -214,6 +222,7 @@ async def buscar_usuario(
 ):
 
     return verifica_banco(current_user, usuarios.buscar_usuario(dado) )
+
     
 @app.get("/buscarUsuarioExiste/{usuario}", response_model=dict)
 async def buscar_por_id(
@@ -332,13 +341,13 @@ async def buscar_plano(
 
     return verifica_banco(current_user, planos.buscar_plano(dado) )
 
-@app.get("/buscarPlanoItem/{dado}", response_model=dict)
-async def buscar_plano(
-    dado: str,
-    current_user: dict = Depends(oauth2_scheme)
-):
-
-    return verifica_banco(current_user, planos.buscar_plano_item(dado) )
+@app.get("/buscarTodosPlanosItem/{id}", response_model=list)
+async def buscar_plano_itens(
+    id: str,
+    current_user: dict = Depends(oauth2_scheme)):
+    
+    return verifica_banco(current_user, planos.buscar_plano_itens(id))
+    
 
     
 @app.get("/buscarPlanoExiste/{dado}", response_model=dict)
@@ -348,6 +357,51 @@ async def buscar_plano_existe(
 ):
 
     return verifica_banco(current_user, planos.buscar_plano_existe(dado) )
+  
+  
+@app.put("/atualizarPlano/{plano}", response_model=dict)
+async def atualizar_plano(
+    plano: str,
+    data: dict,  
+    current_user: dict = Depends(oauth2_scheme),  
+):
+    
+    return atualizacao_dados_genericos(current_user,data,planos.atualizar_dados, plano)
+
+    
+@app.delete("/deletarPlano/{plano}", response_model=dict)
+async def deletar_plano(
+    plano: str,
+    current_user: dict = Depends(oauth2_scheme)
+):
+    
+    result = verifica_banco(current_user, planos.deletar_plano(plano))
+
+    return result
+
+  
+@app.put("/atualizarPlanoItem/{plano}", response_model=dict)
+async def atualizar_plano_item(
+    plano: str,
+    data: dict,  
+    current_user: dict = Depends(oauth2_scheme),  
+):
+    
+    return atualizacao_dados_genericos(current_user,data,planos.atualizar_item_plano, plano)
+
+    
+@app.delete("/deletarPlanoItem/{plano}", response_model=dict)
+async def deletar_plano_item(
+    plano: str,
+    current_user: dict = Depends(oauth2_scheme)
+):
+    
+    result = verifica_banco(current_user, planos.deletar_plano_item(plano))
+
+    return result
+
+  
+  
     
    
 #### CLIENTE ######
